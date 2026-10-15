@@ -61,10 +61,11 @@ await test("追问不重复发送用户输入，当前任务放在历史之后",
   assert.ok(messages.at(-1).content.includes("问细节"));
   assert.equal(messages.map(m=>m.content).join("\n").split("用哈希表？").length-1,1);
 });
-await test("后台总结覆盖题型、解法、变式与有证据语法，禁止复制题目", () => {
+await test("后台总结采用简短题意与思路、页面官方标签和有证据语法", () => {
   const {system,messages}=buildMessages({problem:PROBLEM,mode:"archive",previousSummary:"已有总结"});
   assert.ok(system.includes("学习记录整理员"));
-  for(const field of ["题型总结","基本解法","变式","提问依据","不要复制题目"]) assert.ok(messages[0].content.includes(field));
+  for(const field of ["一句话题意","核心思路","提问依据","不要复制题目","一般题不要列时间/空间复杂度"]) assert.ok(messages[0].content.includes(field));
+  assert.ok(messages[0].content.includes('LeetCode 官方标签（页面读取）: 数组、哈希表'));
   assert.ok(messages[0].content.includes("已有总结"));
 });
 await test("超长上下文被截断", () => {

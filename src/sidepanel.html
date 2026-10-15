@@ -19,7 +19,7 @@
     <div class="card">
       <div class="card-head">
         <span class="problem-title" id="problem-title">正在读取题目…</span>
-        <button class="btn tiny" id="btn-refresh" title="重新读取题目">↻</button>
+        <div class="row"><button class="btn tiny" id="btn-notes">手记 ↗</button><button class="btn tiny" id="btn-refresh" title="重新读取题目">↻</button></div>
       </div>
       <span class="muted" id="problem-meta"></span>
     </div>
@@ -36,12 +36,6 @@
       <div class="card-head"><span>教练回复</span><button class="btn tiny" id="btn-copy">复制</button></div>
       <div class="output" id="output"><p class="muted">从 hint 开始。问细节不会推进层级。</p></div>
     </div>
-    <div class="card">
-      <div class="card-head"><span>学习归档</span><button class="btn tiny" id="btn-sync">立即同步</button></div>
-      <p class="hint">每次问答后，总结到 leetcode hot 100.md：题型总结、基本解法、变式，以及有证据的易忘语法。</p>
-      <label class="inline-check"><input type="checkbox" id="full-archive" />整体归档：本题同时保存完整题面、代码与对话</label>
-      <p class="hint" id="archive-status" role="status">尚无待归档问答。</p>
-    </div>
   </section>
   <section class="panel" id="panel-settings">
     <div class="card">
@@ -57,12 +51,18 @@
     </div>
     <div class="card">
       <div class="card-head"><span>归档到本地文件</span><button class="btn tiny" id="btn-bridge-status">检查连接</button></div>
-      <p class="hint">本地桥负责写文件。暂时离线时，问答保留在浏览器内；重新打开侧栏或点击「立即同步」后重试。</p>
+      <p class="hint">问答后自动归档，沿用当前的精简笔记格式。暂时离线时保留记录，侧栏打开时自动重试。</p>
       <label class="field"><span>桥地址</span><input class="text-input" id="bridge-url" /></label>
       <label class="field"><span>桥令牌</span><input class="text-input" id="bridge-token" type="password" autocomplete="off" /></label>
       <label class="field"><span>归档路径</span><input class="text-input" id="obsidian-path" /></label>
       <p class="hint">同一道题原位更新，保留文件中其他题目和你自己写的内容。</p>
+      <p class="hint" id="archive-status" role="status">归档自动进行，无需手动开启。</p>
     </div>
+    <details class="card">
+      <summary>当前题目的整体归档</summary>
+      <label class="inline-check"><input type="checkbox" id="full-archive" disabled />同时保存完整题面、代码与对话</label>
+      <p class="hint">默认只保存精简总结。需要整体归档时，在题目侧栏的设置中选择。</p>
+    </details>
     <details class="card">
       <summary>教练 Prompt</summary>
       <textarea class="prompt-box" id="coach-prompt" spellcheck="false"></textarea>

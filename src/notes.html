@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LC Coach · 手记</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+  <link rel="stylesheet" href="notes.css" />
+</head>
+<body class="notes-page">
+  <header class="topbar">
+    <strong id="note-title">手记</strong>
+    <div class="row"><button class="btn" id="note-copy" disabled>复制</button><button class="btn primary" id="note-save" disabled>保存</button></div>
+  </header>
+  <main class="note-editor">
+    <p class="hint">按题自动保存到本机，关闭窗口后保留。手记不会发送给模型，也不会被自动归档覆盖。</p>
+    <label class="sr-only" for="note-text">我的手记</label>
+    <textarea id="note-text" spellcheck="false" disabled placeholder="写下你自己的思路、容易忘的细节……"></textarea>
+    <p class="hint" id="note-status" role="status">正在读取手记…</p>
+  </main>
+  <script type="module" src="notes.js"></script>
+</body>
+</html>

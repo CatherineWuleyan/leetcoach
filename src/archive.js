@@ -14,7 +14,7 @@
 //
 // Kept pure so it can be unit-tested without a browser.
 
-import { ARCHIVE_MARKERS } from "./prompts.js";
+import { ARCHIVE_MARKERS, topicLabels } from "./prompts.js";
 
 /** Normalise a model-supplied key into something stable and filename-safe. */
 export function normalizeKey(raw) {
@@ -137,12 +137,32 @@ function fenced(text, lang = "") {
   const fence = "`".repeat(Math.max(3, ...runs.map(s => s.length + 1)));
   return `${fence}${lang}\n${text || "（空）"}\n${fence}`;
 }
+function withTopicTags(markdown, problem) {
+  // Reuse page tags when available; otherwise keep the summary's own tags.
+  // Both paths are local and require no additional model or network request.
+  const modelTags = [];
+  const lines = markdown.split("\n").filter(line => {
+    const isTagLine = /^\s*#[^\s#]+(?:\s+#[^\s#]+)*\s*$/.test(line)
+      || /^\s*\*\*(?:Tags?|标签)\*\*\s*[：:]/i.test(line);
+    if (isTagLine) for (const match of line.matchAll(/#([^\s#]+)/g)) modelTags.push(match[1]);
+    return !isTagLine;
+  });
+  const official = topicLabels(problem);
+  const labels = official.length ? official : modelTags.slice(0, 3).map(label =>
+    /^(?:hash[_-]?(?:set|map|table)|哈希集合|哈希映射)$/i.test(label) ? "哈希表" : label);
+  const tags = [...new Set(labels.map(label => label.replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "")))]
+    .filter(Boolean).map(label => "#" + label);
+  const heading = lines.findIndex(line => /^###\s/.test(line));
+  if (tags.length && heading >= 0) lines.splice(heading + 1, 0, "", tags.join(" "));
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
 /** Enforce summary-only storage, and count evidenced syntax questions once. */
 export function prepareArchive(snapshot, rawText, memory = {}) {
   const parsed = parseArchive(rawText);
   if (!parsed.problem) throw new Error("模型没有返回有效题目总结，记录已保留，稍后重试。");
   let markdown = parsed.problem.markdown
     .replace(/```[^\n]*\n[\s\S]*?```/g, "（代码已省略；只保留总结）");
+  markdown = withTopicTags(markdown, snapshot.problem);
   const key = problemKey(snapshot.problem);
   const nextMemory = structuredClone(memory);
   const syntax = [];
@@ -156,8 +176,8 @@ export function prepareArchive(snapshot, rawText, memory = {}) {
     const observations = [...new Set([...(prior.observations || []), ...indices.map(i => `${key}:${i}`)])];
     const sources = [...new Set([...(prior.sources || []), key])];
     const body = item.markdown.replace(/^-\s*\*\*(?:提问依据|观察次数|出自)\*\*.*$/gm, "").trim();
-    const countLine = `- **观察次数**：${observations.length} 次语法提问${observations.length > 1 ? "（重复出现）" : "（仅观察到一次，尚不推断为常忘）"}`;
-    const entry = { key:item.key, markdown:safeMarkers(`${body}\n${countLine}\n- **出自**：${sources.join("、")}`) };
+    const repeat = observations.length > 1 ? `（问过 ${observations.length} 次）` : "";
+    const entry = { key:item.key, markdown:safeMarkers(`${body}\n- **出自**：${sources.join("、")}${repeat}`) };
     nextMemory[item.key] = { observations, sources, markdown:entry.markdown };
     syntax.push(entry);
   }

@@ -1,11 +1,19 @@
 // Service worker: deliberately tiny.
 //
-// All real work (scraping, model calls, note storage) happens in the side panel,
-// which is a normal extension page with full host permissions and no service
-// worker lifetime problem. The worker exists only to make the toolbar icon open
-// the side panel.
+// Coaching and archives run in the side panel. The worker opens that panel and
+// persists hand notes independently so closing a note window does not drop writes.
 
 import { DEFAULT_SETTINGS } from "./config.js";
+import { createNoteWriter } from "./manual-notes.js";
+
+const saveNote = createNoteWriter(chrome.storage.local);
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (message?.type !== "lc-coach:save-note") return;
+  if (sender.id !== chrome.runtime.id) return;
+  Promise.resolve().then(() => saveNote(message.key, message.note))
+    .then(() => respond({ ok: true }), error => respond({ ok: false, error: error.message }));
+  return true; // Keep the worker alive while the write is pending.
+});
 
 function setupPanel() {
   // Without this the toolbar click does nothing at all.

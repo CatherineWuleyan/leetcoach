@@ -52,6 +52,7 @@ MODULES = [
     "src/probe.js",
     "src/markdown.js",
     "src/archive.js",
+    "src/manual-notes.js",
 ]
 
 exports = {}
@@ -75,6 +76,7 @@ CONSUMERS = [
     "src/background.js",
     "src/content.js",
     "src/hook.js",
+    "src/notes.js",
 ]
 
 for consumer in CONSUMERS:
@@ -92,6 +94,16 @@ for m, names in exports.items():
     notes.append(f"{m} 导出: {sorted(names)}")
 
 # ------------------------------------------------------------------ classic scripts must not use export/import
+note_html = read("src/notes.html")
+note_js = read("src/notes.js")
+note_ids = set(re.findall(r'\bid="([^"]+)"', note_html))
+missing_note_ids = set(re.findall(r'\$\("([^"]+)"\)', note_js)) - note_ids
+if missing_note_ids:
+    problems.append(f"手记 JS 引用了不存在的 id: {sorted(missing_note_ids)}")
+for asset in ["src/notes.html", "src/notes.css", "src/notes.js"]:
+    if not os.path.exists(asset):
+        problems.append(f"缺少手记窗口资源: {asset}")
+
 for f in ["src/content.js", "src/hook.js"]:
     src = read(f)
     if re.search(r'^\s*export\s', src, re.M) or re.search(r'^\s*import\s', src, re.M):

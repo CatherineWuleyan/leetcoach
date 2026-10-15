@@ -37,6 +37,7 @@ body {
 /* ---------------------------------------------------------------- top bar */
 
 .topbar {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -97,6 +98,7 @@ body {
 /* ---------------------------------------------------------------- layout */
 
 .panel {
+  min-height: 0;
   display: none;
   flex-direction: column;
   gap: 8px;
@@ -109,6 +111,7 @@ body {
 }
 
 .card {
+  flex-shrink: 0;
   background: var(--bg-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -415,7 +418,7 @@ body {
 /* ---------------------------------------------------------------- output */
 
 .output-card {
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   min-height: 160px;
 }
 
@@ -624,6 +627,7 @@ body {
 .flow { display: flex; align-items: center; justify-content: space-between; gap: 4px; color: var(--fg-dim); font-size: 11px; }
 .flow .current { color: var(--accent); font-weight: 650; }
 .grow { flex: 1; }
+.card-head > .row { display: flex; align-items: center; gap: 6px; }
 #ask { width: 100%; min-height: 84px; }
 #archive-status { overflow-wrap: anywhere; }
 #output:empty::before { content: "从 hint 开始。"; color: var(--fg-dim); }

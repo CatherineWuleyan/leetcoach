@@ -7,6 +7,9 @@
 //   4. Answer diagnostics requests so extraction failures are debuggable
 //      instead of silent.
 
+(() => {
+if (globalThis.__LC_COACH_CONTENT_READY__) return;
+
 const TAG = "lc-coach-hook";
 const IS_CN = location.hostname.endsWith("leetcode.cn");
 
@@ -367,3 +370,5 @@ chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
 
   return false;
 });
+globalThis.__LC_COACH_CONTENT_READY__ = true;
+})();

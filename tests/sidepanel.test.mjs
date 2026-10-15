@@ -5,14 +5,16 @@ import * as config from '../src/config.js';
 import * as prompts from '../src/prompts.js';
 import * as archive from '../src/archive.js';
 import {renderMarkdown} from '../src/markdown.js';
+import {openManualNotes} from '../src/manual-notes.js';
 const source=fs.readFileSync(new URL('../src/sidepanel.js',import.meta.url),'utf8')
   .replace(/^import\s+[\s\S]*?from\s+"[^"]+";/gm,'').replace(/init\(\)\.catch\([\s\S]*$/,'');
-const problem={number:'1',slug:'two-sum',title:'1. 两数之和',description:'ORIGINAL_PROBLEM',language:'C++'};
+const problem={number:'1',slug:'two-sum',title:'1. 两数之和',description:'ORIGINAL_PROBLEM',language:'C++',topics:['数组','哈希表']};
 const summary=`@@PROBLEM@@
 ### LC 1 · 两数之和
-- **题型总结**：哈希表
-- **基本解法**：查询目标差值，O(n) 时间 / O(n) 空间。
-- **变式**：改为有序数组。
+#数组 #哈希表
+**题意**：在数组中找出和等于目标值的两个不同位置。
+- **思路**：查询目标差值。
+- **迁移**：改为有序数组。
 @@SYNTAX@@`;
 function setup(saved={}, hash="") {
   const elements=new Map();
@@ -22,7 +24,7 @@ function setup(saved={}, hash="") {
     return elements.get(id);
   };
   const store=structuredClone(saved),listeners=[];
-  const ctx=vm.createContext({...config,...prompts,...archive,renderMarkdown,console,URL,AbortController,AbortSignal,structuredClone,
+  const ctx=vm.createContext({...config,...prompts,...archive,renderMarkdown,openManualNotes,console,URL,AbortController,AbortSignal,structuredClone,
     setTimeout:()=>1,clearTimeout(){},location:{hash},navigator:{clipboard:{writeText:async()=>{}}},
     document:{getElementById:el,querySelectorAll:()=>[],createElement:()=>el(Symbol())},
     chrome:{storageChanged:[],permissions:{contains:async()=>true},storage:{onChanged:{addListener(){}},local:{
@@ -97,7 +99,8 @@ await test('成功总结写入文件之后才清除待同步状态',async()=>{
   h.ctx.bridgeFetch=async(url,args)=>{if(args)writes.push(args.body);return {ok:true};};
   await h.run('syncArchives()');assert.equal(writes.length,1);
   assert.equal(writes[0].path,config.DEFAULT_SETTINGS.obsidian.path);
-  assert.ok(writes[0].problem.markdown.includes('基本解法'));
+  assert.ok(writes[0].problem.markdown.includes('**思路**'));
+  assert.ok(writes[0].problem.markdown.includes('#数组 #哈希表'));
   assert.ok(!writes[0].problem.markdown.includes('ORIGINAL_PROBLEM'));
   assert.equal(h.run('pendingSessions().length'),0);
 });
@@ -130,10 +133,10 @@ await test('不同标签页的事件不覆盖当前问题，切换服务商不�
   h.el('provider').events.change({target:{value:'anthropic'}});
   assert.equal(h.run('state.settings.apiKey'),'');
 });
-await test('界面不显示代码和旧模式，只保留递进、细节、整体归档选项',()=>{
+await test('界面不显示代码和旧模式，整体归档选项保留在设置中',()=>{
   const html=fs.readFileSync(new URL('../src/sidepanel.html',import.meta.url),'utf8');
   for(const id of ['id="code"','id="modes"','id="auto-note"','id="btn-save-note"'])assert.ok(!html.includes(id));
-  for(const label of ['问细节','整体归档','leetcode hot 100.md'])assert.ok(html.includes(label));
+  for(const label of ['问细节','整体归档','归档到本地文件'])assert.ok(html.includes(label));
 });
 await test('单独的设置页不创建或覆盖学习会话、不启动归档任务',async()=>{
   const sessions={'LC 99':{history:[{role:'user',content:'保留原问题'}],revision:2}};
@@ -186,5 +189,50 @@ await test('默认 Prompt 是用户指定规则的英文版',()=>{
   const prompt=prompts.DEFAULT_COACH_PROMPT;
   assert.ok(!/[\u4e00-\u9fff]/.test(prompt));
   for(const rule of ['quant trading / quant research','HRT, Jump Trading, and DRW','at most three sentences','Do not provide code or pseudocode','current task explicitly authorizes','minimal syntax snippet','operation counts','Respond in Chinese'])assert.ok(prompt.includes(rule),rule);
+});
+await test('升级后移除旧暂停状态、默认继续归档，保留 Key、自定义 Prompt 与手记',async()=>{
+  const h=setup({settings:{uiVersion:2,coachPromptVersion:1,archivePaused:true,apiKey:'KEEP',coachPrompt:'CUSTOM'},
+    'manual-note:LC 1':{text:'我的思路'}});
+  await h.run('loadStorage()');
+  assert.equal(h.run('"archivePaused" in state.settings'),false);
+  assert.equal('archivePaused' in h.store.settings,false);
+  assert.equal(h.store.settings.apiKey,'KEEP');assert.equal(h.store.settings.coachPrompt,'CUSTOM');
+  h.run("ensureSession(testProblem);currentSession().revision=3;state.settings.bridge.token='test'");
+  h.ctx.bridgeFetch=async()=>({ok:true});h.ctx.callModel=async()=>({text:summary});
+  await h.run('syncArchives()');
+  assert.equal(h.run('pendingSessions().length'),0);
+  assert.equal(h.store['manual-note:LC 1'].text,'我的思路');
+});
+await test('缺少官方标签直接采用摘要中的通用标签，不增加模型请求',async()=>{
+  const h=setup();let calls=0,writes=[];
+  h.run("currentSession().revision=1;currentSession().problem.topics=[];state.settings.bridge.token='test'");
+  h.ctx.bridgeFetch=async(_path,options)=>{if(options)writes.push(options.body);return {ok:true};};
+  h.ctx.callModel=async request=>{calls++;assert.match(request.messages[0].content,/无需额外查询/);return {text:summary.replace('#数组 #哈希表','#数组 #HashMap')};};
+  await h.run('syncArchives()');
+  assert.equal(calls,1);assert.equal(writes.length,1);
+  assert.ok(writes[0].problem.markdown.includes('#数组 #哈希表'));
+  assert.equal(h.run('pendingSessions().length'),0);
+});
+await test('扩展重载后只补注入一次脚本并重连，不刷新题目页或改动编辑器',async()=>{
+  const h=setup();let attempts=0;const injected=[];
+  h.ctx.chrome.tabs.sendMessage=(_id,_message,cb)=>{
+    if (++attempts===1) {h.ctx.chrome.runtime.lastError={message:'Could not establish connection. Receiving end does not exist.'};cb();delete h.ctx.chrome.runtime.lastError;}
+    else cb(structuredClone(problem));
+  };
+  h.ctx.chrome.scripting.executeScript=async args=>{injected.push(args);};
+  await h.run('refreshProblem()');
+  assert.equal(attempts,2);assert.equal(injected.length,1);
+  assert.equal(injected[0].files[0],'src/content.js');assert.equal(h.run('state.problem.slug'),'two-sum');
+  h.ctx.chrome.tabs.sendMessage=(_id,_message,cb)=>{h.ctx.chrome.runtime.lastError={message:'Permission denied'};cb();delete h.ctx.chrome.runtime.lastError;};
+  await h.run('refreshProblem()');assert.equal(injected.length,1,'其他错误不重复注入');
+});
+await test('重复补注入不会重复注册消息监听和提交拦截',()=>{
+  let messages=0,relays=0,hooks=0;
+  const context=vm.createContext({location:{hostname:'leetcode.cn'},console,
+    document:{createElement:()=>({}),head:{appendChild(){hooks++;}}},
+    window:{addEventListener(){relays++;}},chrome:{runtime:{getURL:path=>path,onMessage:{addListener(){messages++;}}}}});
+  const script=fs.readFileSync(new URL('../src/content.js',import.meta.url),'utf8');
+  vm.runInContext(script,context);vm.runInContext(script,context);
+  assert.equal(messages,1);assert.equal(relays,1);assert.equal(hooks,1);
 });
 console.log(`通过 ${passed} 项侧栏流程测试`);

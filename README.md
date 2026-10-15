@@ -1,4 +1,4 @@
-# LC Coach
+# leetcoach
 
 A Chrome side-panel extension for deliberate algorithm interview practice.
 
@@ -19,17 +19,24 @@ Getting a complete solution too early makes it easy to recognize an answer witho
 
 The side panel shows the problem and coaching response. Editor code is read in the background when needed, without occupying space in the panel.
 
+### Handwritten notes
+
+Select **Notes / 手记 ↗** next to the problem title to open a separate writing window. Notes are saved automatically for each problem in the local Chrome profile and restored when reopened. Opening the same problem's notes again focuses its existing window. **Save** and `Cmd/Ctrl + S` retry a save; **Copy** copies the text.
+
+Handwritten notes use separate storage keys: coaching and archive updates do not overwrite them. They are not sent to the model or automatically added to the Markdown archive.
+
 ### Learning archive
 
 After a conversation, LC Coach summarizes the material into `leetcode hot 100.md`:
 
-- **Problem notes:** pattern recognition, core approach, complexity, variations, and the questions raised during practice.
-- **Syntax notes:** syntax questions supported by the user's actual messages, with deduplicated observations across conversations.
+- **Problem notes:** a one-sentence problem description, official LeetCode topic tags, and a short core approach. Include pitfalls or variations only when useful; discuss complexity only when it is particularly relevant.
+- **Topic tags:** use official topics already read on the problem page when available; otherwise the summary supplies general knowledge-point tags without extra lookups or model calls. Hash sets and hash maps share the Hash Table classification; implementation details stay in the explanation.
+- **Syntax notes:** one short rule and an optional minimal example, supported by actual user messages. Observations are deduplicated internally; repeat counts appear only when a question has recurred.
 - **Summary by default:** no automatic dump of full problem statements, code, or transcripts.
-- **Optional full archive:** explicitly include the complete problem, editor code, and conversation for the current problem.
+- **Optional full archive:** select the option in the side panel's settings to include the complete problem, editor code, and conversation for the current problem.
 - **Updates in place:** repeated practice updates the same entry while preserving other entries and handwritten notes.
 
-Unfinished archive jobs are stored locally. They resume when the panel is reopened or **Sync now / 立即同步** is selected. Closing the panel pauses processing; it does not discard the queue.
+Archiving runs automatically using this summary format; its status is shown in settings, leaving the coaching response unobstructed. Unfinished archive jobs are stored locally and retried while the panel is open or when reopened. Closing the panel pauses processing; it does not discard the queue.
 
 ## Technical design
 
@@ -60,8 +67,8 @@ These controls improve application behavior; generated explanations and summarie
 Requires Chrome 116 or later. No build step or npm dependencies are needed.
 
 ```bash
-git clone https://github.com/CatherineWuleyan/lc-coach.git
-cd lc-coach
+git clone https://github.com/CatherineWuleyan/leetcoach.git
+cd leetcoach
 ```
 
 1. Open `chrome://extensions/` in Chrome.

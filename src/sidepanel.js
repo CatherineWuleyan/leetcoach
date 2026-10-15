@@ -4,6 +4,7 @@ import { callModel, listModels } from "./providers.js";
 import { PROBE_EDITOR } from "./probe.js";
 import { renderMarkdown } from "./markdown.js";
 import { problemKey, prepareArchive } from "./archive.js";
+import { openManualNotes } from "./manual-notes.js";
 
 const $ = id => document.getElementById(id);
 const SETTINGS_PAGE = location.hash === "#settings";
@@ -15,6 +16,7 @@ const state = {
 let storageTail = Promise.resolve();
 let retryTimer;
 let toastTimer;
+let openingNotes = false;
 const clone = value => structuredClone(value);
 function toast(message, error = false) {
   $("toast").textContent = message;
@@ -37,12 +39,16 @@ async function loadStorage() {
     bridge: {...DEFAULT_SETTINGS.bridge, ...saved.bridge},
     obsidian: {...DEFAULT_SETTINGS.obsidian, ...saved.obsidian} };
   // This is the user-requested prompt migration; never touch the provider key.
+  let settingsChanged = false;
   if (saved.uiVersion !== 2 || saved.coachPromptVersion !== 1) {
     state.settings.uiVersion = 2;
     state.settings.coachPromptVersion = 1;
     state.settings.coachPrompt = DEFAULT_COACH_PROMPT;
-    await saveSettings();
+    settingsChanged = true;
   }
+  // The reviewed summary format is now the default; retire the temporary pause.
+  if ("archivePaused" in state.settings) { delete state.settings.archivePaused; settingsChanged = true; }
+  if (settingsChanged) await saveSettings();
   state.sessions = data.sessions || {};
   state.syntaxMemory = data.syntaxMemory || {};
 }
@@ -81,6 +87,7 @@ function render() {
   ["step-hint","step-approach","step-code"].forEach((id,i) => $(id).classList.toggle("current",step === i + 1));
   $("btn-ladder").disabled = state.busy || !session;
   $("btn-detail").disabled = state.busy || !session;
+  $("btn-notes").disabled = !p || openingNotes;
   $("full-archive").disabled = !session;
   $("full-archive").checked = !!session?.fullArchive;
   $("status-dot").className = "dot" + (p ? " ok" : "");
@@ -102,6 +109,16 @@ function activeTab() {
   return new Promise(resolve => chrome.tabs.query({active:true,currentWindow:true},tabs => resolve(tabs?.[0])));
 }
 const isLeetCode = url => /^https:\/\/leetcode\.(cn|com)\/problems\//.test(String(url || ""));
+async function scrapeTab(tabId) {
+  try { return await sendTab(tabId, {type:"lc-coach:scrape"}); }
+  catch (error) {
+    if (!/receiving end does not exist|could not establish connection/i.test(error.message)) throw error;
+    // Reloading an unpacked extension disconnects existing content scripts.
+    // Reconnect in place, preserving the code currently being edited.
+    await chrome.scripting.executeScript({target:{tabId},files:["src/content.js"]});
+    return sendTab(tabId, {type:"lc-coach:scrape"});
+  }
+}
 async function refreshProblem() {
   const refreshId = ++state.refreshId;
   const tab = await activeTab();
@@ -109,7 +126,7 @@ async function refreshProblem() {
   state.currentTabId = tab?.id ?? null;
   if (!isLeetCode(tab?.url)) { state.problem = null; showSession(); return; }
   try {
-    const problem = await sendTab(tab.id,{type:"lc-coach:scrape"});
+    const problem = await scrapeTab(tab.id);
     if (refreshId !== state.refreshId) return;
     if (!problem?.slug || problem.error || !problem.description) throw new Error("题面尚未加载，请稍后重新读取。");
     const previousKey = state.problem ? problemKey(state.problem) : "";
@@ -302,6 +319,14 @@ function showTab(name) {
 function bindEvents() {
   document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click",() => showTab(tab.dataset.tab)));
   $("btn-refresh").addEventListener("click",refreshProblem);
+  $("btn-notes").addEventListener("click", async () => {
+    if (!state.problem || openingNotes) return;
+    openingNotes = true;
+    render();
+    try { await openManualNotes(chrome, state.problem); }
+    catch (error) { toast("无法打开手记：" + error.message, true); }
+    finally { openingNotes = false; render(); }
+  });
   $("btn-ladder").addEventListener("click",() => runQuestion("ladder",{fullSolution:currentSession()?.stage >= 2}));
   $("btn-detail").addEventListener("click",() => runQuestion("detail"));
   $("ask").addEventListener("keydown",event => {
@@ -324,7 +349,6 @@ function bindEvents() {
     render();
     void syncArchives();
   });
-  $("btn-sync").addEventListener("click",() => void syncArchives());
   $("provider").addEventListener("change",event => {
     const preset = PROVIDERS[event.target.value];
     state.settings.provider = event.target.value;
@@ -375,6 +399,7 @@ function bindEvents() {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.settings?.newValue) {
       state.settings = changes.settings.newValue;
+      renderArchiveStatus();
       void syncArchives();
     }
   });
