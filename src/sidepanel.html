@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LC Coach</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="dot" id="status-dot"></span><strong>LC Coach</strong></div>
+    <div class="tabbar" role="tablist">
+      <button class="tab active" data-tab="coach" role="tab">教练</button>
+      <button class="tab" data-tab="settings" role="tab">设置</button>
+    </div>
+  </header>
+  <div class="toast" id="toast" hidden></div>
+  <section class="panel active" id="panel-coach">
+    <div class="card">
+      <div class="card-head">
+        <span class="problem-title" id="problem-title">正在读取题目…</span>
+        <button class="btn tiny" id="btn-refresh" title="重新读取题目">↻</button>
+      </div>
+      <span class="muted" id="problem-meta"></span>
+    </div>
+    <div class="card">
+      <div class="flow"><span id="step-hint">1 hint</span><span>→</span><span id="step-approach">2 算法思路</span><span>→</span><span id="step-code">3 详细代码</span></div>
+      <textarea class="ask-box" id="ask" rows="3" placeholder="说说你的思路或疑问；继续学习点蓝色按钮，追问某一点用「问细节」。"></textarea>
+      <div class="row">
+        <button class="btn primary grow" id="btn-ladder">获取 hint</button>
+        <button class="btn" id="btn-detail">问细节</button>
+      </div>
+      <p class="hint" id="step-hint-text">先自己想一两句，再向教练提问。</p>
+    </div>
+    <div class="card output-card">
+      <div class="card-head"><span>教练回复</span><button class="btn tiny" id="btn-copy">复制</button></div>
+      <div class="output" id="output"><p class="muted">从 hint 开始。问细节不会推进层级。</p></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span>学习归档</span><button class="btn tiny" id="btn-sync">立即同步</button></div>
+      <p class="hint">每次问答后，总结到 leetcode hot 100.md：题型总结、基本解法、变式，以及有证据的易忘语法。</p>
+      <label class="inline-check"><input type="checkbox" id="full-archive" />整体归档：本题同时保存完整题面、代码与对话</label>
+      <p class="hint" id="archive-status" role="status">尚无待归档问答。</p>
+    </div>
+  </section>
+  <section class="panel" id="panel-settings">
+    <div class="card">
+      <div class="card-head"><span>模型</span></div>
+      <label class="field"><span>服务商</span><select class="text-input" id="provider"></select></label>
+      <p class="hint" id="provider-note"></p>
+      <label class="field"><span>Base URL</span><input class="text-input" id="base-url" spellcheck="false" /></label>
+      <label class="field"><span>模型名</span><span class="row"><input class="text-input" id="model" list="model-list" /><button class="btn tiny" id="btn-fetch-models">拉取模型</button></span><datalist id="model-list"></datalist></label>
+      <label class="field"><span id="api-key-label">API Key</span><input class="text-input" id="api-key" type="password" autocomplete="off" spellcheck="false" /></label>
+      <p class="hint" id="api-key-hint">Key 保存在本机，只发送给当前服务商。</p>
+      <label class="field"><span>代码语言</span><select class="text-input" id="language"></select></label>
+      <p class="hint">编辑器内容在后台读取，仅用于理解你的问题。</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><span>归档到本地文件</span><button class="btn tiny" id="btn-bridge-status">检查连接</button></div>
+      <p class="hint">本地桥负责写文件。暂时离线时，问答保留在浏览器内；重新打开侧栏或点击「立即同步」后重试。</p>
+      <label class="field"><span>桥地址</span><input class="text-input" id="bridge-url" /></label>
+      <label class="field"><span>桥令牌</span><input class="text-input" id="bridge-token" type="password" autocomplete="off" /></label>
+      <label class="field"><span>归档路径</span><input class="text-input" id="obsidian-path" /></label>
+      <p class="hint">同一道题原位更新，保留文件中其他题目和你自己写的内容。</p>
+    </div>
+    <details class="card">
+      <summary>教练 Prompt</summary>
+      <textarea class="prompt-box" id="coach-prompt" spellcheck="false"></textarea>
+      <button class="btn tiny" id="btn-reset-prompt">恢复默认 Prompt</button>
+    </details>
+    <button class="btn primary" id="btn-save-settings">保存设置</button>
+    <p class="hint" id="save-state" role="status"></p>
+  </section>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

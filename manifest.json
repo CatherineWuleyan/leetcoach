@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "LC Coach — Quant Interview Trainer",
+  "version": "1.2.0",
+  "description": "LeetCode 算法面试陪练：渐进提示、定点追问与自动学习总结。",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://leetcode.cn/*",
+    "https://leetcode.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "https://api.deepseek.com/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://openrouter.ai/*",
+    "https://api.moonshot.cn/*",
+    "https://dashscope.aliyuncs.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "LC Coach — 打开侧边栏"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.cn/problems/*",
+        "https://leetcode.com/problems/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/hook.js"
+      ],
+      "matches": [
+        "https://leetcode.cn/*",
+        "https://leetcode.com/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "options_page": "src/sidepanel.html#settings"
+}

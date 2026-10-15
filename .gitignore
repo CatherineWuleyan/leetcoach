@@ -1,0 +1,15 @@
+# Local connection credentials, logs, and learning records
+.local/
+.env
+.env.*
+*.log
+/leetcode hot 100.md
+/notes/
+
+# Local tooling and generated packages
+.DS_Store
+__pycache__/
+*.py[cod]
+node_modules/
+*.crx
+*.pem
