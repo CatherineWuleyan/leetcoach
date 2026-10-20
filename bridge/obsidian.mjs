@@ -12,11 +12,13 @@ const H1 = "# LeetCode Hot 100 归档";
 const NOTE = "> 由 LC Coach 自动生成。每个条目都被注释标记包裹，请勿手动删除标记。";
 const PROBLEM_HEADING = "## 一、题目归档";
 const SYNTAX_HEADING = "## 二、语法归档";
+const MANUAL_HEADING = "## 三、手记";
 
 /** 区域标题（二级标题）与条目标记的对应关系 */
 const KINDS = {
   problem: { heading: PROBLEM_HEADING },
   syntax: { heading: SYNTAX_HEADING },
+  manual: { heading: MANUAL_HEADING },
 };
 
 /** 生成一份全新的骨架文档（以单个换行符结尾，保证结果稳定）。 */
@@ -199,9 +201,33 @@ export function upsertArchive(docText, sections) {
       }
     }
 
+    if (sec.manual && typeof sec.manual === "object") {
+      lines = ensureHeading(lines, MANUAL_HEADING, null);
+      lines = upsertBlock(lines, "manual", sec.manual.key, sec.manual.markdown);
+    }
+
     return lines.join("\n");
   } catch {
     // 兜底：宁可不改，也不抛异常。
     return typeof docText === "string" ? docText : "";
   }
+}
+
+/** User-written Markdown has a separate block that summaries never replace. */
+export function upsertManualNote(docText, note) {
+  if (typeof note?.key !== "string" || !note.key.trim() || note.key.length > 256 || /[\r\n<>]/.test(note.key)
+      || typeof note.text !== "string" || typeof note.title !== "string") throw new Error("手记内容无效。");
+  const key = note.key.trim();
+  if (!note.text.trim()) {
+    const lines = normalizeNewlines(docText || "").split("\n");
+    const markers = markerLines("manual", key);
+    const open = lines.findIndex(line => line.trim() === markers.open);
+    const close = lines.findIndex(line => line.trim() === markers.close);
+    if (open >= 0 && close > open) lines.splice(open, close - open + 1);
+    return lines.join("\n");
+  }
+  // Reserved archive markers inside a note are literal text, never boundaries.
+  const safe = text => text.replace(/<!--\s*\/?lc-coach:/g, match => "&lt;" + match.slice(1));
+  const title = safe(note.title.replace(/[\r\n]+/g, " ").trim() || key);
+  return upsertArchive(docText, { manual: { key, markdown: `### ${title}\n\n${safe(note.text)}` } });
 }

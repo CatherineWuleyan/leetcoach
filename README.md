@@ -2,7 +2,9 @@
 
 A Chrome side-panel extension for deliberate algorithm interview practice.
 
-LC Coach gives progressively deeper help, answers focused follow-up questions, and turns practice conversations into concise Markdown review notes. It supports LeetCode and 力扣, with a default coaching prompt tailored to quant trading and quant research interview preparation.
+LC Coach lets you choose hints, algorithm explanations, or complete code directly, answers focused follow-up questions, and turns practice conversations into concise Markdown review notes. It supports LeetCode and 力扣, with a default coaching prompt tailored to quant trading and quant research interview preparation.
+
+**Version 1.4.1:** four compact actions in one row, keyboard shortcuts for direct depth selection, and handwritten notes synced to your Markdown archive with offline recovery.
 
 ## Why I built it
 
@@ -14,7 +16,7 @@ Getting a complete solution too early makes it easy to recognize an answer witho
 | --- | --- |
 | **Hint** | At most three sentences, without naming the algorithm, giving steps, or writing code. Ends by asking for your own approach. |
 | **Algorithm approach** | Recognition signals, algorithm steps, complexity justification, and important edge cases. No code or pseudocode. |
-| **Full solution** | Complete code in the current language, only after explicitly selecting the full-solution button. |
+| **Full code / 完整代码** | Complete code in the current language, only after explicitly choosing the full-code button or its dedicated shortcut. |
 | **Follow-up detail** | An answer to the current question without advancing the level. Minimal syntax snippets are allowed when relevant. |
 
 The side panel shows the problem and coaching response. Editor code is read in the background when needed, without occupying space in the panel.
@@ -23,7 +25,9 @@ The side panel shows the problem and coaching response. Editor code is read in t
 
 Select **Notes / 手记 ↗** next to the problem title to open a separate writing window. Notes are saved automatically for each problem in the local Chrome profile and restored when reopened. Opening the same problem's notes again focuses its existing window. **Save** and `Cmd/Ctrl + S` retry a save; **Copy** copies the text.
 
-Handwritten notes use separate storage keys: coaching and archive updates do not overwrite them. They are not sent to the model or automatically added to the Markdown archive.
+Handwritten notes are written directly to a separate **手记** section in the configured `leetcode hot 100.md`, with one entry per problem. Model-generated summaries cannot replace these entries. A local browser copy is kept first; offline edits and existing notes are synced when the bridge reconnects, including after the writing window closes. The editor distinguishes a local save from a confirmed file write. No model call is made for handwritten notes.
+
+When upgrading from 1.3.x or earlier, restart the local bridge as well as reloading the extension so the bridge can accept handwritten-note writes. For the new buttons and shortcuts, close and reopen the side panel.
 
 ### Learning archive
 
@@ -109,11 +113,23 @@ The bridge token authenticates local file access. It is separate from the model 
 ## Everyday use
 
 1. Open a problem and describe your thinking, or select **Hint**.
-2. Select **Algorithm approach** when ready for the next level.
-3. Explicitly select **Full solution** when you want complete code.
+2. Select **Algorithm approach / 算法思路** for the algorithm directly, including on the first request.
+3. Explicitly select **Full code / 完整代码** when you want complete code, without needing to go through earlier levels.
 4. Use **Follow-up detail** for questions about a specific point.
 
-`Cmd/Ctrl + Enter` sends a regular request. At the full-solution stage, the button must still be selected explicitly to prevent accidental spoilers. `Cmd/Ctrl + Shift + Enter` asks a focused follow-up.
+All four buttons fit in one compact row. You can select any depth on each request, including returning to **Hint**. With the question box focused:
+
+| Shortcut | Action |
+| --- | --- |
+| `Alt/Option + 1` | Hint |
+| `Alt/Option + 2` | Algorithm approach, directly |
+| `Alt/Option + 3` | Full code, directly; explicitly authorizes a complete solution for this request |
+| `Shift + Enter` | Focused follow-up detail |
+| `Enter` | New line |
+| `Cmd/Ctrl + Enter` | Advance one level; stops before full code unless explicitly selected |
+| `Cmd/Ctrl + Shift + Enter` | Focused follow-up detail |
+
+On macOS, use the **Option / ⌥** key for Alt. Button tooltips also show the shortcuts. Input-method composition and held keys do not accidentally send requests.
 
 Archive generation makes an additional request to the selected model. Coaching uses deep reasoning on official DeepSeek Flash; background summarization uses non-thinking mode. The request output budget includes both reasoning and answer tokens.
 
@@ -131,7 +147,13 @@ Offline checks require Node.js 22+ and Python 3:
 bash tests/run.sh
 ```
 
-The suite covers manifest/asset consistency, JavaScript syntax, provider request formats, streaming and cancellation, progressive authorization, session recovery, archive merging, syntax evidence, and response escaping. GitHub Actions runs these checks on pushes and pull requests.
+The suite covers manifest/asset consistency, JavaScript syntax, provider request formats, streaming and cancellation, direct depth selection and authorization, Mac keyboard shortcuts, session recovery, archive merging, handwritten-note sync, syntax evidence, and response escaping. GitHub Actions runs these checks on pushes and pull requests.
+
+A self-contained bridge integration test creates a temporary archive and verifies authenticated handwritten-note writes, concurrent summary updates, idempotency, and clearing a note. It runs in CI without a model API key or access to your personal archive:
+
+```bash
+node bridge/manual-note.test.mjs
+```
 
 With your archive bridge running, an additional live check verifies authentication, origin checks, file restrictions, and an unchanged archive digest:
 

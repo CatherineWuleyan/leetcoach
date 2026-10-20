@@ -1,7 +1,7 @@
 import { problemKey } from "./archive.js";
 
 export function noteStorageKey(key) {
-  if (typeof key !== "string" || !key.trim() || key.length > 256) throw new Error("手记题目无效。");
+  if (typeof key !== "string" || !key.trim() || key.length > 256 || /[\r\n<>]/.test(key)) throw new Error("手记题目无效。");
   return "manual-note:" + key;
 }
 
@@ -9,17 +9,36 @@ export function noteStorageKey(key) {
 // Run this queue in the worker so closing the editor does not discard pending writes.
 export function createNoteWriter(storage) {
   const pending = new Map();
-  return function saveNote(key, note) {
+  function enqueue(key, operation) {
     const storageKey = noteStorageKey(key);
-    if (typeof note?.text !== "string" || typeof note?.title !== "string") throw new Error("手记内容无效。");
-    const snapshot = { text: note.text, title: note.title, updatedAt: Date.now() };
     const write = (pending.get(storageKey) || Promise.resolve()).catch(() => {})
-      .then(() => storage.set({ [storageKey]: snapshot }));
+      .then(() => operation(storageKey));
     pending.set(storageKey, write);
     const cleanup = () => { if (pending.get(storageKey) === write) pending.delete(storageKey); };
     write.then(cleanup, cleanup);
     return write;
-  };
+  }
+  function saveNote(key, note) {
+    if (typeof note?.text !== "string" || typeof note?.title !== "string") throw new Error("手记内容无效。");
+    const snapshot = { text: note.text, title: note.title, updatedAt: Date.now(), revision: crypto.randomUUID() };
+    return enqueue(key, async storageKey => { await storage.set({ [storageKey]: snapshot }); return snapshot; });
+  }
+  saveNote.read = key => enqueue(key, async storageKey => {
+    let note = (await storage.get([storageKey]))[storageKey];
+    if (typeof note?.text !== "string" || (!note.text && !note.revision)) return null;
+    if (!note.revision) {
+      note = { ...note, revision: crypto.randomUUID() };
+      await storage.set({ [storageKey]: note });
+    }
+    return note;
+  });
+  saveNote.markSynced = (key, revision, target) => enqueue(key, async storageKey => {
+    const note = (await storage.get([storageKey]))[storageKey];
+    if (!note || note.revision !== revision) return false;
+    await storage.set({ [storageKey]: { ...note, syncedRevision: revision, syncedTarget: target } });
+    return true;
+  });
+  return saveNote;
 }
 
 export async function openManualNotes(api, problem) {

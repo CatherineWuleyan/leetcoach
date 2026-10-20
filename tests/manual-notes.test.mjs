@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createNoteWriter,noteStorageKey,openManualNotes} from '../src/manual-notes.js';
+import {createNoteSynchronizer,manualNoteTarget,NOTE_SYNC_STATE} from '../src/note-sync.js';
 let passed=0;
 async function test(name,fn){await fn();passed++;console.log('  ✅ '+name);}
 
@@ -41,11 +42,12 @@ await test('重复打开同题聚焦已有窗口；换题创建独立窗口',asy
 await test('后台接收编辑器消息并在写入完成后确认；其他扩展不能写手记',async()=>{
   const worker=fs.readFileSync(new URL('../src/background.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
   const store={};let handler;
-  const chrome={storage:{local:{set:async data=>Object.assign(store,data)}},
+  const chrome={storage:{onChanged:{addListener(){}},local:{get:async()=>structuredClone(store),set:async data=>Object.assign(store,data)}},
     runtime:{id:'self',onMessage:{addListener(fn){handler=fn;}},onInstalled:{addListener(){}}},
-    sidePanel:{setPanelBehavior:async()=>{}},onStartup:{addListener(){}}};
+    sidePanel:{setPanelBehavior:async()=>{}},onStartup:{addListener(){}},
+    alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener(){}}}};
   chrome.runtime.onStartup=chrome.onStartup;
-  vm.runInNewContext(worker,{chrome,createNoteWriter,console});
+  vm.runInNewContext(worker,{chrome,createNoteWriter,createNoteSynchronizer,console,setTimeout:()=>1,clearTimeout(){}});
   const message={type:'lc-coach:save-note',key:'LC 15',note:{title:'三数之和',text:'我写的'}};
   assert.equal(handler(message,{id:'other'},()=>{throw Error('不应确认');}),undefined);
   assert.equal(Object.keys(store).length,0);
@@ -54,26 +56,28 @@ await test('后台接收编辑器消息并在写入完成后确认；其他扩�
 });
 
 const source=fs.readFileSync(new URL('../src/notes.js',import.meta.url),'utf8')
-  .replace(/^import .*;$/m,'').replace(/init\(\)\.catch\([\s\S]*$/,'');
+  .replace(/^import .*;$/gm,'').replace(/init\(\)\.catch\([\s\S]*$/,'');
 function editor(saved={}) {
   const elements=new Map();
   const el=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',disabled:true,events:{},classList:{toggle(){}},
     addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
   const store=structuredClone(saved),writes=[];
   const save=createNoteWriter({set:async data=>Object.assign(store,data)});
-  const ctx=vm.createContext({noteStorageKey,URLSearchParams,location:{search:'?key=LC+15&title=LC+15'},
+  const ctx=vm.createContext({noteStorageKey,manualNoteTarget,NOTE_SYNC_STATE,URLSearchParams,location:{search:'?key=LC+15&title=LC+15'},
     document:{getElementById:el,addEventListener(){}},navigator:{clipboard:{writeText:async()=>{}}},
-    chrome:{storage:{local:{get:async keys=>Object.fromEntries(keys.map(key=>[key,store[key]]))}},runtime:{sendMessage:async message=>{
-      writes.push(message);await save(message.key,message.note);return {ok:true};}}}});
+    chrome:{storage:{onChanged:{addListener(){}},local:{get:async keys=>Object.fromEntries(keys.map(key=>[key,store[key]]))}},runtime:{sendMessage:async message=>{
+      if(message.type==='lc-coach:sync-notes')return {ok:true};
+      writes.push(message);const note=await save(message.key,message.note);return {ok:true,note};}}}});
   vm.runInContext(source,ctx);
   return {el,store,writes,ctx,run:code=>vm.runInContext(code,ctx)};
 }
-await test('重新打开恢复手记；输入自动保存而不需要模型或归档桥',async()=>{
+await test('桥不可用时仍保存本机，重开恢复；不冒称已写入文件',async()=>{
   const h=editor({'manual-note:LC 15':{text:'自己的推理'}});await h.run('init()');
   assert.equal(h.el('note-text').value,'自己的推理');assert.equal(h.el('note-text').disabled,false);
   h.el('note-text').value='自己的新推理';await h.run('save()');
   assert.equal(h.store['manual-note:LC 15'].text,'自己的新推理');
   assert.match(h.el('note-status').textContent,/已保存/);
+  assert.match(h.el('note-status').textContent,/文件待同步/);
   const reopened=editor(h.store);await reopened.run('init()');assert.equal(reopened.el('note-text').value,'自己的新推理');
 });
 await test('失败保留编辑内容，保存按钮重试；旧请求不能覆盖新状态',async()=>{
@@ -83,7 +87,7 @@ await test('失败保留编辑内容，保存按钮重试；旧请求不能覆�
   let firstResolve;
   h.ctx.chrome.runtime.sendMessage=()=>new Promise(resolve=>{firstResolve=resolve;});
   const first=h.run('save()');
-  h.ctx.chrome.runtime.sendMessage=async()=>({ok:true});await h.run('save()');
+  h.ctx.chrome.runtime.sendMessage=async()=>({ok:true,note:{text:'不能丢失'}});await h.run('save()');
   firstResolve({ok:false,error:'old failure'});await first;assert.match(h.el('note-status').textContent,/已保存/);
 });
 console.log(`通过 ${passed} 项手记测试`);

@@ -81,11 +81,10 @@ function render() {
   const session = currentSession();
   $("problem-title").textContent = p ? (p.number ? `LC ${p.number} · ` : "") + (p.title || p.slug).replace(/^\d+\s*[.、]\s*/, "") : "请先打开一道力扣题目";
   $("problem-meta").textContent = p ? [p.difficulty,p.domain].filter(Boolean).join(" · ") : "支持 leetcode.cn / leetcode.com";
-  const step = Math.min(3,(session?.stage || 0) + 1);
-  $("btn-ladder").textContent = state.busy ? "思考中…" : LADDER_STEPS[step - 1].label;
-  $("step-hint-text").textContent = LADDER_STEPS[step - 1].blurb;
-  ["step-hint","step-approach","step-code"].forEach((id,i) => $(id).classList.toggle("current",step === i + 1));
-  $("btn-ladder").disabled = state.busy || !session;
+  $("step-hint-text").textContent = state.busy ? "思考中…" : "Alt/⌥ + 1/2/3 选深度 · Shift + Enter 问细节";
+  ["btn-hint","btn-approach","btn-code"].forEach(id => {
+    $(id).disabled = state.busy || !session;
+  });
   $("btn-detail").disabled = state.busy || !session;
   $("btn-notes").disabled = !p || openingNotes;
   $("full-archive").disabled = !session;
@@ -96,7 +95,7 @@ function render() {
 function showSession() {
   const session = currentSession();
   $("ask").value = "";
-  $("output").innerHTML = session?.lastOutput ? renderMarkdown(session.lastOutput) : '<p class="muted">从 hint 开始。问细节不会推进层级。</p>';
+  $("output").innerHTML = session?.lastOutput ? renderMarkdown(session.lastOutput) : '<p class="muted">选择 hint、算法思路或完整代码。问细节只回答当前疑问。</p>';
   render();
 }
 function sendTab(tabId, message) {
@@ -157,16 +156,17 @@ async function ensureHostPermission(baseUrl) {
   const origins = [`${u.protocol}//${u.hostname}/*`];
   return (await chrome.permissions.contains({origins})) || chrome.permissions.request({origins});
 }
-/** A successful teaching request advances once; a detail question never does. */
-async function runQuestion(mode = "ladder", { fullSolution = false } = {}) {
+/** Direct depth selections authorize only that request; generic Enter shortcuts cannot authorize code. */
+async function runQuestion(mode = "ladder", { fullSolution = false, ladderStep } = {}) {
   if (state.busy) return;
   const session = currentSession();
   const tabId = state.currentTabId;
   if (!session || !tabId) return toast("先打开一道力扣题目。",true);
   const ask = $("ask").value.trim();
   if (mode === "detail" && !ask) return toast("先输入你想追问的细节。",true);
-  const step = Math.min(3,session.stage + 1);
-  if (mode === "ladder" && step === 3 && !fullSolution) return toast("需要完整解法时，请点击「详细代码（完整解法）」。");
+  const step = ladderStep ?? Math.min(3,session.stage + 1);
+  if (![1,2,3].includes(step)) return;
+  if (mode === "ladder" && step === 3 && !fullSolution) return toast("需要完整解法时，请点击「完整代码」。");
   state.busy = true;
   state.archiveController?.abort();
   clearTimeout(retryTimer);
@@ -327,13 +327,25 @@ function bindEvents() {
     catch (error) { toast("无法打开手记：" + error.message, true); }
     finally { openingNotes = false; render(); }
   });
-  $("btn-ladder").addEventListener("click",() => runQuestion("ladder",{fullSolution:currentSession()?.stage >= 2}));
+  $("btn-hint").addEventListener("click",() => runQuestion("ladder",{ladderStep:1}));
+  $("btn-approach").addEventListener("click",() => runQuestion("ladder",{ladderStep:2}));
+  $("btn-code").addEventListener("click",() => runQuestion("ladder",{ladderStep:3,fullSolution:true}));
   $("btn-detail").addEventListener("click",() => runQuestion("detail"));
   $("ask").addEventListener("keydown",event => {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    if (event.isComposing || event.keyCode === 229) return;
+    // Use physical digit codes: Option + digit produces symbols on macOS.
+    if (event.altKey && !event.metaKey && !event.ctrlKey && !event.shiftKey && /^Digit[123]$/.test(event.code)) {
       event.preventDefault();
-      // A shortcut must not accidentally consent to a full solution.
-      void runQuestion(event.shiftKey ? "detail" : "ladder");
+      if (!event.repeat) {
+        const ladderStep = Number(event.code.slice(-1));
+        void runQuestion("ladder",{ladderStep,fullSolution:ladderStep === 3});
+      }
+      return;
+    }
+    if (event.key === "Enter" && (event.shiftKey || event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      // Generic send shortcuts must not accidentally consent to a full solution.
+      if (!event.repeat) void runQuestion(event.shiftKey ? "detail" : "ladder");
     }
   });
   $("btn-copy").addEventListener("click",async() => {

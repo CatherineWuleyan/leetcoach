@@ -17,3 +17,5 @@ jobs:
           python-version: '3.x'
       - name: Validate extension and run offline tests
         run: bash tests/run.sh
+      - name: Verify handwritten-note file writes through the local bridge
+        run: node bridge/manual-note.test.mjs

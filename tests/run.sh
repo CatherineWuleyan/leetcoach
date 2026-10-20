@@ -11,7 +11,7 @@ echo "### 一致性校验"
 echo
 echo "### 语法校验"
 mkdir -p /tmp/lccheck
-for f in src/background.js src/config.js src/prompts.js src/providers.js src/probe.js src/markdown.js src/archive.js src/sidepanel.js src/manual-notes.js src/notes.js bridge/lib.mjs bridge/obsidian.mjs bridge/server.mjs bridge/start.mjs; do
+for f in src/background.js src/config.js src/prompts.js src/providers.js src/probe.js src/markdown.js src/archive.js src/sidepanel.js src/manual-notes.js src/note-sync.js src/notes.js bridge/lib.mjs bridge/obsidian.mjs bridge/server.mjs bridge/start.mjs; do
   cp "$f" "/tmp/lccheck/$(basename "$f").mjs"
   "$NODE" --check "/tmp/lccheck/$(basename "$f").mjs" && echo "  OK(module)  $f"
 done
@@ -34,3 +34,5 @@ echo "### 逻辑测试"
 "$NODE" tests/streaming.test.mjs
 
 "$NODE" tests/manual-notes.test.mjs
+
+"$NODE" tests/note-sync.test.mjs

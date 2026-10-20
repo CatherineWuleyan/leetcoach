@@ -24,17 +24,18 @@
       <span class="muted" id="problem-meta"></span>
     </div>
     <div class="card">
-      <div class="flow"><span id="step-hint">1 hint</span><span>→</span><span id="step-approach">2 算法思路</span><span>→</span><span id="step-code">3 详细代码</span></div>
-      <textarea class="ask-box" id="ask" rows="3" placeholder="说说你的思路或疑问；继续学习点蓝色按钮，追问某一点用「问细节」。"></textarea>
-      <div class="row">
-        <button class="btn primary grow" id="btn-ladder">获取 hint</button>
-        <button class="btn" id="btn-detail">问细节</button>
+      <textarea class="ask-box" id="ask" rows="3" placeholder="说说你的思路或疑问，选择回答深度；Shift + Enter 问细节。"></textarea>
+      <div class="teaching-actions">
+        <button class="btn" id="btn-hint" title="Alt/Option + 1：获取提示" aria-keyshortcuts="Alt+1">Hint</button>
+        <button class="btn primary" id="btn-approach" title="Alt/Option + 2：直接获取算法思路" aria-keyshortcuts="Alt+2">算法思路</button>
+        <button class="btn" id="btn-code" title="Alt/Option + 3：明确选择完整解法，直接展示完整代码" aria-keyshortcuts="Alt+3">完整代码</button>
+        <button class="btn" id="btn-detail" title="Shift + Enter">问细节</button>
       </div>
-      <p class="hint" id="step-hint-text">先自己想一两句，再向教练提问。</p>
+      <p class="hint" id="step-hint-text">Alt/⌥ + 1/2/3 选深度 · Shift + Enter 问细节</p>
     </div>
     <div class="card output-card">
       <div class="card-head"><span>教练回复</span><button class="btn tiny" id="btn-copy">复制</button></div>
-      <div class="output" id="output"><p class="muted">从 hint 开始。问细节不会推进层级。</p></div>
+      <div class="output" id="output"><p class="muted">选择 hint、算法思路或完整代码。问细节只回答当前疑问。</p></div>
     </div>
   </section>
   <section class="panel" id="panel-settings">

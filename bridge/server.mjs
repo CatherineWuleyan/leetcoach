@@ -38,7 +38,7 @@ import {
   detectAuthError,
   flattenToPrompt,
 } from "./lib.mjs";
-import { upsertArchive } from "./obsidian.mjs";
+import { upsertArchive, upsertManualNote } from "./obsidian.mjs";
 
 /* ------------------------------------------------------------------ config */
 
@@ -391,6 +391,7 @@ const server = http.createServer(async (req, res) => {
       workdir: WORKDIR,
       timeoutMs: TIMEOUT_MS,
       defaultModel: FORCED_MODEL || null,
+      capabilities: { manualNotes: true },
     });
     return;
   }
@@ -407,6 +408,7 @@ const server = http.createServer(async (req, res) => {
     // Codex chooses its own model unless one is forced, so there is nothing
     // useful to enumerate. "default" tells the extension to omit -m.
     json(res, 200, {
+      capabilities: { manualNotes: true },
       data: [
         { id: "default", label: "Codex 默认模型" },
         ...(FORCED_MODEL ? [{ id: FORCED_MODEL, label: FORCED_MODEL }] : []),
@@ -508,7 +510,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (url.pathname === "/obsidian/upsert" && req.method === "POST") {
+  if (["/obsidian/upsert", "/obsidian/manual-note"].includes(url.pathname) && req.method === "POST") {
     let payload;
     try {
       payload = JSON.parse(await readBody(req));
@@ -524,9 +526,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const manual = url.pathname === "/obsidian/manual-note";
+    if (manual && (typeof payload.note?.key !== "string" || !payload.note.key.trim()
+      || payload.note.key.length > 256 || /[\r\n<>]/.test(payload.note.key)
+      || typeof payload.note.text !== "string" || typeof payload.note.title !== "string")) {
+      json(res, 400, { error: "手记内容无效。" });
+      return;
+    }
+
     try {
       const before = existsSync(target) ? readFileSync(target, "utf8") : "";
-      const after = upsertArchive(before, {
+      const after = manual ? upsertManualNote(before, payload.note) : upsertArchive(before, {
         problem: payload.problem || null,
         syntax: Array.isArray(payload.syntax) ? payload.syntax : [],
       });
@@ -552,6 +562,7 @@ const server = http.createServer(async (req, res) => {
         counts: {
           problems: (after.match(/<!-- lc-coach:problem:/g) || []).length,
           syntax: (after.match(/<!-- lc-coach:syntax:/g) || []).length,
+          manual: (after.match(/<!-- lc-coach:manual:/g) || []).length,
         },
       });
     } catch (err) {

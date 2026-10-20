@@ -51,7 +51,7 @@ await test('首次 hint、再次算法思路、第三层必须显式选择完整
   await h.run('runQuestion()');assert.equal(calls.length,2,'快捷发送不得默认授权完整代码');
   await h.run('runQuestion("ladder",{fullSolution:true})');
   assert.equal(h.run('currentSession().stage'),3);
-  assert.ok(calls[2].messages[0].content.includes('已点击'));
+  assert.ok(calls[2].messages[0].content.includes('明确选择完整解法'));
 });
 await test('问细节不推进层级，空问题不调用模型',async()=>{
   const h=setup();h.ctx.syncArchives=async()=>{};
@@ -61,6 +61,66 @@ await test('问细节不推进层级，空问题不调用模型',async()=>{
   assert.equal(h.run('currentSession().history[0].content'),'为什么这里是 n-1？');
   const count=h.run('currentSession().history.length');
   await h.run('runQuestion("detail")');assert.equal(h.run('currentSession().history.length'),count);
+});
+await test('可从首轮一键直达算法或代码，再选 Hint 只请求对应深度',async()=>{
+  for (const [button,step] of [['btn-approach',2],['btn-code',3]]) {
+    const h=setup(),calls=[];h.ctx.syncArchives=async()=>{};
+    h.ctx.callModel=async cfg=>{calls.push(cfg);return {text:'REPLY'};};
+    h.run('bindEvents()');
+    await h.el(button).events.click();
+    assert.equal(calls.length,1);assert.equal(h.run('currentSession().stage'),step);
+    assert.ok(calls[0].messages[0].content.includes(`第 ${step} 层`));
+    assert.equal(calls[0].messages[0].content.includes('明确选择完整解法'),step===3);
+    await h.el('btn-hint').events.click();
+    assert.equal(h.run('currentSession().stage'),1);
+    assert.ok(calls[1].messages[0].content.includes('第 1 层'));
+    assert.ok(!calls[1].messages[0].content.includes('明确选择完整解法'));
+  }
+  const h=setup();h.ctx.syncArchives=async()=>{};
+  let calls=0;h.ctx.callModel=async()=>{calls++;return {text:'REPLY'};};
+  await h.run('runQuestion("ladder",{ladderStep:3})');
+  assert.equal(calls,0,'直达代码仍必须有本次明确授权');
+});
+await test('Shift Enter 发送问细节，不升级；普通回车和输入法确认不发送',async()=>{
+  const h=setup(),calls=[];h.ctx.syncArchives=async()=>{};
+  h.ctx.callModel=async cfg=>{calls.push(cfg);return {text:'REPLY'};};
+  h.run('currentSession().stage=2;bindEvents()');
+  h.el('ask').value='为什么要先查询？';
+  let prevented=0;
+  const keydown=overrides=>h.el('ask').events.keydown({key:'Enter',preventDefault(){prevented++;},...overrides});
+  keydown({});
+  keydown({shiftKey:true,isComposing:true});
+  keydown({shiftKey:true,keyCode:229});
+  assert.equal(prevented,0);assert.equal(calls.length,0);
+  keydown({shiftKey:true});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(prevented,1);assert.equal(calls.length,1);
+  assert.equal(h.run('currentSession().stage'),2);
+  assert.equal(h.run('currentSession().history[0].content'),'为什么要先查询？');
+  assert.ok(calls[0].messages[0].content.includes('问细节'));
+});
+await test('Alt/Option 数字键直接选择深度，兼容 Mac 符号且不重复发送',async()=>{
+  for (const [step,key] of [[1,'¡'],[2,'™'],[3,'£']]) {
+    const h=setup(),calls=[];h.ctx.syncArchives=async()=>{};
+    h.ctx.callModel=async cfg=>{calls.push(cfg);return {text:'REPLY'};};
+    h.run('bindEvents()');
+    let prevented=0;
+    const keydown=overrides=>h.el('ask').events.keydown({code:`Digit${step}`,key,altKey:true,preventDefault(){prevented++;},...overrides});
+    keydown({isComposing:true});keydown({ctrlKey:true});keydown({metaKey:true});keydown({shiftKey:true});
+    assert.equal(prevented,0);assert.equal(calls.length,0);
+    keydown({repeat:true});
+    assert.equal(calls.length,0);
+    keydown({});await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(prevented,2);assert.equal(calls.length,1);
+    assert.equal(h.run('currentSession().stage'),step);
+    assert.ok(calls[0].messages[0].content.includes(`第 ${step} 层`));
+    assert.equal(calls[0].messages[0].content.includes('明确选择完整解法'),step===3);
+  }
+  const h=setup();h.run('currentSession().stage=2;bindEvents()');
+  let calls=0;h.ctx.callModel=async()=>{calls++;return {text:'REPLY'};};
+  h.el('ask').events.keydown({key:'Enter',metaKey:true,preventDefault(){}});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls,0,'普通发送快捷键不能授权完整代码');
 });
 await test('失败不升级；已提问内容仍保存到待总结记录',async()=>{
   const h=setup();h.ctx.syncArchives=async()=>{};

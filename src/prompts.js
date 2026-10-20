@@ -14,7 +14,7 @@ Respond in Chinese, keeping algorithm terms, complexity notation, and code ident
 export const LADDER_INSTRUCTIONS = {
   1: `【第 1 层：hint】绝对不要说出算法模式的名字，不给步骤、伪代码，绝对不要给代码。最多三句话，最后让我用一两句话说自己的思路。不要提前预告下一层。`,
   2: `【第 2 层：算法思路】模式名（这一层才允许说出来）、触发信号、中文步骤、复杂度紧界及论证、1–2 个边界。不要给任何代码，也不要给伪代码。讲完让我自己写。`,
-  3: `【第 3 层：详细代码】我已点击「详细代码（完整解法）」，明确选择完整解法。给当前语言的完整可提交的代码，关键行说明为什么；论证时间/空间复杂度，举 2–3 个边界情况。`,
+  3: `【第 3 层：详细代码】我已通过「完整代码」按钮或专用快捷键，明确选择完整解法。给当前语言的完整可提交的代码，关键行说明为什么；论证时间/空间复杂度，举 2–3 个边界情况。`,
 };
 export const ARCHIVE_MARKERS = { PROBLEM: "@@PROBLEM@@", SYNTAX: "@@SYNTAX@@", ENTRY_PREFIX: "@@ENTRY:" };
 export const ARCHIVE_INSTRUCTION = `把学习材料整理成极简、可快速复习的中文笔记。这是后台归档，不是给学生的下一层提示。

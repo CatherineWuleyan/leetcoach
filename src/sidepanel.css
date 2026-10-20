@@ -622,11 +622,10 @@ body {
 .loading::after {
   content: "…";
 }
-/* The teaching panel has one progression action and one focused follow-up. */
+/* Direct depth selection stays usable in a narrow side panel. */
 [hidden] { display: none !important; }
-.flow { display: flex; align-items: center; justify-content: space-between; gap: 4px; color: var(--fg-dim); font-size: 11px; }
-.flow .current { color: var(--accent); font-weight: 650; }
-.grow { flex: 1; }
+.teaching-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.teaching-actions .btn { min-width: 0; padding: 4px 5px; font-size: 11px; }
 .card-head > .row { display: flex; align-items: center; gap: 6px; }
 #ask { width: 100%; min-height: 84px; }
 #archive-status { overflow-wrap: anywhere; }

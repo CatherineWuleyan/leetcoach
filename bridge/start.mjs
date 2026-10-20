@@ -18,6 +18,8 @@ async function connected(){
 }
 if(await connected()){
   console.log('归档桥已运行：'+cfg.url);
+  const info=await(await fetch(cfg.url+'/models',{headers:{'X-LC-Coach-Token':cfg.token},signal:AbortSignal.timeout(1000)})).json();
+  if(!info.capabilities?.manualNotes)console.warn('此桥版本较旧；手记写入文件需先重启归档桥。');
 }else{
   const fd=fs.openSync(path.join(local,'bridge.log'),'a',0o600);
   const child=spawn(process.execPath,[path.join(root,'bridge/server.mjs'),'--archive-only','--archive-path',cfg.archivePath,

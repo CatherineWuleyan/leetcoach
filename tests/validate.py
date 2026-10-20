@@ -53,6 +53,7 @@ MODULES = [
     "src/markdown.js",
     "src/archive.js",
     "src/manual-notes.js",
+    "src/note-sync.js",
 ]
 
 exports = {}

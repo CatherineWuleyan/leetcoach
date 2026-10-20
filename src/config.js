@@ -97,8 +97,8 @@ export const PROVIDER_ORDER = [
 /** The only teaching flow exposed in the panel. */
 export const LADDER_STEPS = [
   { step: 1, label: "获取 hint", blurb: "只指方向，让你先说自己的思路。" },
-  { step: 2, label: "继续：算法思路", blurb: "模式、触发信号、步骤、复杂度；不给代码。" },
-  { step: 3, label: "详细代码（完整解法）", blurb: "点击表示明确选择完整解法。" },
+  { step: 2, label: "算法思路", blurb: "模式、触发信号、步骤、复杂度；不给代码。" },
+  { step: 3, label: "完整代码", blurb: "点击表示明确选择完整解法。" },
 ];
 export const LADDER_MAX_STEP = 3;
 export const MODES = {
